@@ -1,0 +1,120 @@
+#!/usr/bin/env python
+#-*- coding: utf-8 -*-
+#Copyright (c) 2014 James Beedy
+from Pubnub import Pubnub
+from argparse import ArgumentParser
+from streamteam import streamteam as st
+from emokit import emotiv
+import gevent
+ 
+
+def create_parser():
+    parser = ArgumentParser(
+        description='pubnub publisher',
+        prog='pubnuber'
+    )
+    parser.add_argument(
+        'channel',
+        metavar='channel',
+        help='channel',
+    )
+    parser.add_argument(
+        'publish',
+        metavar='publish',
+        help='publish'
+    )
+    parser.add_argument(
+        'subscribe',
+        metavar='subscribe',
+        help = 'subscribe'
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        '-p',
+        '--pub',
+        nargs='?',
+        help="Value must be yes"
+    )
+    group.add_argument(
+        '-s',
+        '--sub',
+        nargs='?',
+        help="Value must be yes",
+    )
+    parser.add_argument(
+        '-v',
+        '--version',
+        action='version',
+        version='%(prog)s cl2'
+    )
+    return parser
+
+def publisher(packet):
+    return {
+           'values' : {
+               'gyroX' : packet.gyroX,
+               'gyroY' : packet.gyroY,
+               'AF3'   : packet.sensors['AF3']['value'],
+               'F7'    : packet.sensors['F7']['value'],
+               'F3'    : packet.sensors['F3']['value'],
+               'FC5'   : packet.sensors['FC5']['value'],
+               'T7'    : packet.sensors['T7']['value'],
+               'P7'    : packet.sensors['P7']['value'],
+               'O1'    : packet.sensors['O1']['value'],
+               'O2'    : packet.sensors['O2']['value'],
+               'P8'    : packet.sensors['P8']['value'],
+               'T8'    : packet.sensors['T8']['value'],
+               'FC6'   : packet.sensors['FC6']['value'],
+               'F4'    : packet.sensors['F4']['value'],
+               'F8'    : packet.sensors['F8']['value'],
+               'AF4'   : packet.sensors['AF4']['value']
+         },
+           'quality' : {
+               'AF3'   : packet.sensors['AF3']['quality'],
+               'F7'    : packet.sensors['F7']['quality'],
+               'F3'    : packet.sensors['F3']['quality'],
+               'FC5'   : packet.sensors['FC5']['quality'],
+               'T7'    : packet.sensors['T7']['quality'],
+               'P7'    : packet.sensors['P7']['quality'],
+               'O1'    : packet.sensors['O1']['quality'],
+               'O2'    : packet.sensors['O2']['quality'],
+               'P8'    : packet.sensors['P8']['quality'],
+               'T8'    : packet.sensors['T8']['quality'],
+               'FC6'   : packet.sensors['FC6']['quality'],
+               'F4'    : packet.sensors['F4']['quality'],
+               'F8'    : packet.sensors['F8']['quality'],
+               'AF4'   : packet.sensors['AF4']['quality'],
+         }
+    }
+
+
+
+if __name__ == '__main__':
+    parser = create_parser()
+    args = parser.parse_args()
+    p = st.Streamteam(args)
+
+
+    headset = emotiv.Emotiv()
+        
+    if args.sub:
+        try:
+            while True:
+                p.subscribe()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            pass
+
+    if args.pub:
+        gevent.spawn(headset.setup)
+        gevent.sleep(1)
+        try:
+            while True:
+                packet = headset.dequeue()
+                p.publish(publisher(packet))
+                gevent.sleep(0)
+        except KeyboardInterrupt:
+            headset.close()
+        finally:
+            headset.close()
